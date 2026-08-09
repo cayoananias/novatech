@@ -10,6 +10,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { firebaseDb, hasFirebaseConfig } from '../config/firebase'
+import { getProductsSnapshot } from './productsService'
 import { createId, readJson, writeJson } from '../utils/storage'
 
 const localOrdersKey = 'novatech-orders'
@@ -98,6 +99,27 @@ export async function placeOrder({ user, items, totals, paymentMethod = 'pending
 
     return { id: orderReference.id }
   }
+
+  const products = getProductsSnapshot()
+  const nextProducts = products.map((product) => ({ ...product }))
+
+  for (const item of items) {
+    const product = nextProducts.find((candidate) => candidate.id === item.id)
+    if (!product || product.active === false) {
+      throw new Error(`Produto indisponível: ${item.name}`)
+    }
+
+    const currentStock = Number(product.stock || 0)
+    if (currentStock < item.quantity) {
+      throw new Error(`O estoque disponível de ${item.name} mudou. Disponível: ${currentStock} unidade(s).`)
+    }
+
+    product.stock = currentStock - item.quantity
+    product.active = product.stock > 0
+    product.updatedAt = Date.now()
+  }
+
+  writeJson('novatech-products', nextProducts)
 
   const orders = readLocalOrders()
   const order = {

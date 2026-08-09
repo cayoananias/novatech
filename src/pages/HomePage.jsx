@@ -15,8 +15,6 @@ export function HomePage() {
       <section className="hero-card">
         <span className="eyebrow">NovaTech</span>
         <h1>Brinquedos eletrônicos reciclados para a nova geração</h1>
-        <p>Uma loja moderna, pensada primeiro para smartphones, com produtos reaproveitados, estoque em tempo real e carrinho funcional.</p>
-
         <div className="hero-card__actions">
           <button type="button" className="button button--primary" onClick={() => navigate('/produtos')}>
             Explorar produtos
@@ -27,12 +25,25 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="home-banner">
-        <div>
-          <span className="home-banner__eyebrow">Categoria única</span>
-          <strong>Brinquedos Eletrônicos Reciclados</strong>
+      <section className="mission-section" aria-labelledby="mission-title">
+        <div className="mission-section__intro">
+          <span className="home-banner__eyebrow">Institucional</span>
+          <h2 id="mission-title">Missão, Visão e Valores</h2>
         </div>
-        <p>Todos os itens da loja entram nessa única categoria para simplificar a navegação mobile.</p>
+        <div className="mission-grid">
+          <article className="mission-card">
+            <span>Missão</span>
+            <p>Transformar resíduos eletrônicos em ferramentas de inclusão, aprendizado e diversão, criando brinquedos sustentáveis e sensoriais que conectam todas as crianças — neurotípicas e neurodivergentes — através do brincar universal.</p>
+          </article>
+          <article className="mission-card">
+            <span>Visão</span>
+            <p>Ser a marca referência em brinquedos inclusivos e economia circular na América Latina, demonstrando que a tecnologia descartada pode se transformar em um futuro mais acolhedor, consciente e acessível para a infância.</p>
+          </article>
+          <article className="mission-card mission-card--wide">
+            <span>Valores</span>
+            <p><strong>Inclusão pelo Brincar:</strong> Projetar brinquedos sob a ótica do Design Universal, garantindo que crianças autistas e neurotípicas compartilhem a mesma experiência com igualdade.</p>
+          </article>
+        </div>
       </section>
 
       <SectionHeader title="Em destaque" subtitle="Produtos prontos para adicionar ao carrinho" actionLabel="Ver todos" onAction={() => navigate('/produtos')} />
@@ -43,15 +54,6 @@ export function HomePage() {
         ))}
       </section>
 
-      {/* New institutional section */}
-      <section className="mission-section">
-        <h2>Missão</h2>
-        <p>Transformar resíduos eletrônicos em ferramentas de inclusão, aprendizado e diversão, criando brinquedos sustentáveis e sensoriais que conectam todas as crianças — neurotípicas e neurodivergentes — através do brincar universal.</p>
-        <h2>Visão</h2>
-        <p>Ser a marca referência em brinquedos inclusivos e economia circular na América Latina, demonstrando que a tecnologia descartada pode se transformar em um futuro mais acolhedor, consciente e acessível para a infância.</p>
-        <h2>Valores</h2>
-        <p><strong>Inclusão pelo Brincar:</strong> Projetar brinquedos sob a ótica do Design Universal, garantindo que crianças autistas e neurotípicas compartilhem a mesma experiência com igualdade.</p>
-      </section>
     </div>
   )
 }
