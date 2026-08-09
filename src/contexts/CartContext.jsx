@@ -15,6 +15,7 @@ function clampQuantity(quantity, stock) {
   }
 
   return Math.min(Math.floor(numericQuantity), numericStock)
+
 }
 
 function normalizeStoredItems(items) {
@@ -35,6 +36,8 @@ function normalizeStoredItems(items) {
 function persistCartItems(nextItems) {
   writeJson(cartStorageKey, nextItems)
   return nextItems
+=======
+
 }
 
 export function CartProvider({ children }) {
