@@ -6,11 +6,14 @@ const CartContext = createContext(null)
 const cartStorageKey = 'novatech-cart'
 
 function clampQuantity(quantity, stock) {
-  if (!stock || stock <= 0) {
+  const numericQuantity = Number(quantity)
+  const numericStock = Number(stock)
+
+  if (!Number.isFinite(numericQuantity) || !Number.isFinite(numericStock) || numericStock <= 0 || numericQuantity <= 0) {
     return 0
   }
 
-  return Math.min(Math.max(quantity, 1), stock)
+  return Math.min(Math.floor(numericQuantity), numericStock)
 }
 
 export function CartProvider({ children }) {

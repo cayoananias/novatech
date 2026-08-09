@@ -51,14 +51,28 @@ export function getProductsSnapshot() {
   return readLocalProducts()
 }
 
+function readFileAsDataUrl(imageFile) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Não foi possível armazenar a imagem localmente.'))
+    reader.readAsDataURL(imageFile)
+  })
+}
+
 async function uploadProductImage(imageFile) {
-  if (!firebaseStorage || !imageFile) {
+  if (!imageFile) {
     return ''
   }
 
-  const storagePath = `products/${createId('image')}-${imageFile.name}`
+  if (!firebaseStorage || !hasFirebaseConfig) {
+    return readFileAsDataUrl(imageFile)
+  }
+
+  const safeName = imageFile.name.replace(/[^a-z0-9.-]/gi, '-').toLowerCase()
+  const storagePath = `products/${createId('image')}-${safeName}`
   const imageReference = ref(firebaseStorage, storagePath)
-  await uploadBytes(imageReference, imageFile)
+  await uploadBytes(imageReference, imageFile, { contentType: imageFile.type })
   return getDownloadURL(imageReference)
 }
 
