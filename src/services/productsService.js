@@ -16,9 +16,27 @@ import { createId, readJson, writeJson } from '../utils/storage'
 
 const localProductsKey = 'novatech-products'
 
+function normalizeId(id) {
+  return id == null ? '' : String(id)
+}
+
+function normalizeProductRecord(product) {
+  const legacyId = normalizeId(product.legacyId || product.sourceId || '')
+  return {
+    ...product,
+    id: normalizeId(product.id),
+    legacyId: legacyId || undefined,
+    price: Number(product.price) || 0,
+    stock: Math.max(0, Number(product.stock) || 0),
+    active: product.active !== false,
+    featured: product.featured === true || product.featured === 'true' || product.featured === 1 || product.featured === '1',
+  }
+}
+
 function readLocalProducts() {
   const storedProducts = readJson(localProductsKey, null)
-  return Array.isArray(storedProducts) && storedProducts.length > 0 ? storedProducts : seedProducts
+  const sourceProducts = Array.isArray(storedProducts) && storedProducts.length > 0 ? storedProducts : seedProducts
+  return sourceProducts.map(normalizeProductRecord)
 }
 
 function writeLocalProducts(products) {
@@ -30,7 +48,15 @@ export function subscribeProducts(onChange) {
   if (hasFirebaseConfig && firebaseDb) {
     const productsQuery = query(collection(firebaseDb, 'products'), orderBy('createdAt', 'desc'))
     return onSnapshot(productsQuery, (snapshot) => {
-      onChange(snapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() })))
+      onChange(
+        snapshot.docs.map((productDoc) =>
+          normalizeProductRecord({
+            ...productDoc.data(),
+            id: productDoc.id,
+            legacyId: productDoc.data().id,
+          }),
+        ),
+      )
     })
   }
 
@@ -86,21 +112,24 @@ export async function createProduct(rawProduct) {
   }
 
   if (hasFirebaseConfig && firebaseDb) {
+    const firestorePayload = { ...payload }
+    delete firestorePayload.id
     const createdRef = await addDoc(collection(firebaseDb, 'products'), {
-      ...payload,
+      ...firestorePayload,
       createdAt: serverTimestamp(),
     })
 
-    return { ...payload, id: createdRef.id }
+    return normalizeProductRecord({ ...firestorePayload, id: createdRef.id })
   }
 
   const products = readLocalProducts()
   const nextProducts = [{ ...payload, id: payload.id || createId('product') }, ...products]
   writeLocalProducts(nextProducts)
-  return nextProducts[0]
+  return normalizeProductRecord(nextProducts[0])
 }
 
 export async function updateProduct(productId, rawChanges) {
+  const normalizedProductId = normalizeId(productId)
   const changes = { ...rawChanges }
   delete changes.id
 
@@ -119,27 +148,32 @@ export async function updateProduct(productId, rawChanges) {
   changes.updatedAt = Date.now()
 
   if (hasFirebaseConfig && firebaseDb) {
-    const productReference = doc(firebaseDb, 'products', productId)
+    const productReference = doc(firebaseDb, 'products', normalizedProductId)
     await updateDoc(productReference, changes)
-    return { id: productId, ...changes }
+    return normalizeProductRecord({ id: normalizedProductId, ...changes })
   }
 
-  const nextProducts = readLocalProducts().map((product) => (product.id === productId ? { ...product, ...changes } : product))
+  const nextProducts = readLocalProducts().map((product) => (normalizeId(product.id) === normalizedProductId ? { ...product, ...changes } : product))
   writeLocalProducts(nextProducts)
-  return nextProducts.find((product) => product.id === productId)
+  return normalizeProductRecord(nextProducts.find((product) => normalizeId(product.id) === normalizedProductId))
 }
 
 export async function deleteProduct(productId) {
+  const normalizedProductId = normalizeId(productId)
   if (hasFirebaseConfig && firebaseDb) {
-    await deleteDoc(doc(firebaseDb, 'products', productId))
-    return productId
+    await deleteDoc(doc(firebaseDb, 'products', normalizedProductId))
+    return normalizedProductId
   }
 
-  const nextProducts = readLocalProducts().filter((product) => product.id !== productId)
+  const nextProducts = readLocalProducts().filter((product) => normalizeId(product.id) !== normalizedProductId)
   writeLocalProducts(nextProducts)
-  return productId
+  return normalizedProductId
 }
 
 export function getProductById(productId) {
-  return readLocalProducts().find((product) => product.id === productId)
+  const normalizedProductId = normalizeId(productId)
+  const product = readLocalProducts().find(
+    (candidate) => normalizeId(candidate.id) === normalizedProductId || normalizeId(candidate.legacyId) === normalizedProductId,
+  )
+  return product ? normalizeProductRecord(product) : undefined
 }

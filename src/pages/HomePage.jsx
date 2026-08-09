@@ -8,7 +8,7 @@ export function HomePage() {
   const navigate = useNavigate()
   const { products } = useProducts()
   const { addItem } = useCart()
-  const featuredProducts = products.filter((product) => product.active).filter((product) => product.featured).slice(0, 4)
+  const featuredProducts = products.filter((product) => product.featured).slice(0, 4)
 
   return (
     <div className="page page--home">
