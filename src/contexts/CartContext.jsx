@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useProducts } from './ProductsContext'
 import { formatCurrency } from '../utils/format'
 import { readJson, writeJson } from '../utils/storage'
 
@@ -6,22 +7,95 @@ const CartContext = createContext(null)
 const cartStorageKey = 'novatech-cart'
 
 function clampQuantity(quantity, stock) {
-  if (!stock || stock <= 0) {
+  const numericQuantity = Number(quantity)
+  const numericStock = Number(stock)
+
+  if (!Number.isFinite(numericQuantity) || !Number.isFinite(numericStock) || numericStock <= 0 || numericQuantity <= 0) {
     return 0
   }
 
-  return Math.min(Math.max(quantity, 1), stock)
+  return Math.min(Math.floor(numericQuantity), numericStock)
+}
+
+function normalizeStoredItems(items) {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items
+    .map((item) => ({
+      ...item,
+      price: Number(item.price) || 0,
+      stock: Number(item.stock) || 0,
+      quantity: clampQuantity(item.quantity, item.stock),
+    }))
+    .filter((item) => item.id && item.quantity > 0)
+}
+
+function persistCartItems(nextItems) {
+  writeJson(cartStorageKey, nextItems)
+  return nextItems
 }
 
 export function CartProvider({ children }) {
-  const [items, setItems] = useState(() => readJson(cartStorageKey, []))
+  const { products, loading: productsLoading } = useProducts()
+  const [items, setItems] = useState(() => normalizeStoredItems(readJson(cartStorageKey, [])))
 
   useEffect(() => {
-    writeJson(cartStorageKey, items)
+    persistCartItems(items)
   }, [items])
 
-  const addItem = (product, quantity = 1) => {
-    if (!product?.stock || product.stock <= 0) {
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key === cartStorageKey) {
+        setItems(normalizeStoredItems(readJson(cartStorageKey, [])))
+      }
+    }
+
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  useEffect(() => {
+    if (productsLoading || products.length === 0) {
+      return
+    }
+
+    setItems((currentItems) => {
+      const productsById = new Map(products.map((product) => [product.id, product]))
+      const nextItems = currentItems
+        .map((item) => {
+          const product = productsById.get(item.id)
+          if (!product || product.active === false) {
+            return null
+          }
+
+          const quantity = clampQuantity(item.quantity, product.stock)
+          if (quantity <= 0) {
+            return null
+          }
+
+          return {
+            ...item,
+            name: product.name,
+            description: product.description,
+            imageUrl: product.imageUrl,
+            imageAlt: product.imageAlt,
+            price: Number(product.price) || 0,
+            stock: Number(product.stock) || 0,
+            active: product.active,
+            quantity,
+          }
+        })
+        .filter(Boolean)
+
+      const changed = JSON.stringify(nextItems) !== JSON.stringify(currentItems)
+      return changed ? persistCartItems(nextItems) : currentItems
+    })
+  }, [products, productsLoading])
+
+  const addItem = useCallback((product, quantity = 1) => {
+    if (!product?.stock || product.stock <= 0 || product.active === false) {
       return
     }
 
@@ -33,37 +107,44 @@ export function CartProvider({ children }) {
         return currentItems
       }
 
-      if (existingItem) {
-        return currentItems.map((item) =>
-          item.id === product.id
-            ? {
-                ...item,
-                quantity: nextQuantity,
-              }
-            : item,
-        )
-      }
+      const nextItems = existingItem
+        ? currentItems.map((item) =>
+            item.id === product.id
+              ? {
+                  ...item,
+                  name: product.name,
+                  description: product.description,
+                  imageUrl: product.imageUrl,
+                  imageAlt: product.imageAlt,
+                  price: Number(product.price) || 0,
+                  stock: Number(product.stock) || 0,
+                  active: product.active,
+                  quantity: nextQuantity,
+                }
+              : item,
+          )
+        : [
+            ...currentItems,
+            {
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              imageUrl: product.imageUrl,
+              imageAlt: product.imageAlt,
+              price: Number(product.price) || 0,
+              stock: Number(product.stock) || 0,
+              quantity: clampQuantity(quantity, product.stock),
+              active: product.active,
+            },
+          ]
 
-      return [
-        ...currentItems,
-        {
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          imageUrl: product.imageUrl,
-          imageAlt: product.imageAlt,
-          price: Number(product.price),
-          stock: product.stock,
-          quantity: clampQuantity(quantity, product.stock),
-          active: product.active,
-        },
-      ]
+      return persistCartItems(nextItems)
     })
-  }
+  }, [])
 
-  const updateQuantity = (productId, quantity) => {
-    setItems((currentItems) =>
-      currentItems
+  const updateQuantity = useCallback((productId, quantity) => {
+    setItems((currentItems) => {
+      const nextItems = currentItems
         .map((item) =>
           item.id === productId
             ? {
@@ -72,15 +153,19 @@ export function CartProvider({ children }) {
               }
             : item,
         )
-        .filter((item) => item.quantity > 0),
-    )
-  }
+        .filter((item) => item.quantity > 0)
 
-  const removeItem = (productId) => {
-    setItems((currentItems) => currentItems.filter((item) => item.id !== productId))
-  }
+      return persistCartItems(nextItems)
+    })
+  }, [])
 
-  const clearCart = () => setItems([])
+  const removeItem = useCallback((productId) => {
+    setItems((currentItems) => persistCartItems(currentItems.filter((item) => item.id !== productId)))
+  }, [])
+
+  const clearCart = useCallback(() => {
+    setItems(persistCartItems([]))
+  }, [])
 
   const itemCount = useMemo(() => items.reduce((total, item) => total + item.quantity, 0), [items])
   const subtotal = useMemo(() => items.reduce((total, item) => total + item.quantity * item.price, 0), [items])
@@ -106,7 +191,7 @@ export function CartProvider({ children }) {
       clearCart,
       ...cartSummary,
     }),
-    [cartSummary, items],
+    [addItem, cartSummary, clearCart, items, removeItem, updateQuantity],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
