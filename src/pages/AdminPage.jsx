@@ -7,6 +7,7 @@ import { useProducts } from '../contexts/ProductsContext'
 import { subscribeAllOrders } from '../services/ordersService'
 import { subscribeUsers } from '../services/usersService'
 import { formatCurrency } from '../utils/format'
+import { optimizeProductImage, validateImageFile } from '../utils/imageProcessing'
 
 const initialForm = {
   id: '',
@@ -26,6 +27,10 @@ export function AdminPage() {
   const [orders, setOrders] = useState([])
   const [form, setForm] = useState(initialForm)
   const [selectedFile, setSelectedFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [imageInfo, setImageInfo] = useState('')
+  const [imageError, setImageError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => subscribeUsers(setUsers), [])
@@ -48,9 +53,45 @@ export function AdminPage() {
     }
   }, [editingProduct])
 
+  const handleImageChange = async (event) => {
+    const file = event.target.files?.[0] || null
+    setSelectedFile(null)
+    setImagePreview('')
+    setImageInfo('')
+    setImageError('')
+
+    if (!file) return
+
+    const validationError = validateImageFile(file)
+    if (validationError) {
+      setImageError(validationError)
+      return
+    }
+
+    try {
+      const optimizedImage = await optimizeProductImage(file)
+      setSelectedFile(optimizedImage.file)
+      setImagePreview(optimizedImage.previewUrl)
+      setImageInfo(`Imagem otimizada: ${(optimizedImage.optimizedSize / 1024).toFixed(0)} KB, ${optimizedImage.width}×${optimizedImage.height}px.`)
+    } catch (error) {
+      setImageError(error.message || 'Falha ao processar a imagem.')
+    }
+  }
+
+  const resetForm = () => {
+    setForm(initialForm)
+    setSelectedFile(null)
+    setImagePreview('')
+    setImageInfo('')
+    setImageError('')
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
+
     setMessage('')
+    setSaving(true)
 
     try {
       const payload = {
@@ -66,10 +107,11 @@ export function AdminPage() {
         setMessage('Produto criado e sincronizado com o catálogo.')
       }
 
-      setForm(initialForm)
-      setSelectedFile(null)
+      resetForm()
     } catch (error) {
       setMessage(error.message || 'Não foi possível salvar o produto.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -129,7 +171,10 @@ export function AdminPage() {
           </label>
           <label className="field-card">
             <span>Ou enviar arquivo para Firebase Storage</span>
-            <input type="file" accept="image/*" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} />
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} />
+            {imagePreview || form.imageUrl ? <img className="image-preview" src={imagePreview || form.imageUrl} alt="Prévia do produto" /> : null}
+            {imageInfo ? <small className="field-hint">{imageInfo}</small> : null}
+            {imageError ? <small className="field-error">{imageError}</small> : null}
           </label>
           <div className="toggle-row">
             <label>
@@ -145,11 +190,11 @@ export function AdminPage() {
           {message ? <p className="form-message">{message}</p> : null}
 
           <div className="auth-actions">
-            <button type="submit" className="button button--primary">
-              {form.id ? 'Salvar alterações' : 'Adicionar produto'}
+            <button type="submit" className="button button--primary" disabled={saving || Boolean(imageError)}>
+              {saving ? 'Salvando...' : form.id ? 'Salvar alterações' : 'Adicionar produto'}
             </button>
             {form.id ? (
-              <button type="button" className="button button--ghost button--ghost-dark" onClick={() => setForm(initialForm)}>
+              <button type="button" className="button button--ghost button--ghost-dark" onClick={resetForm}>
                 Cancelar edição
               </button>
             ) : null}
@@ -169,7 +214,7 @@ export function AdminPage() {
                 <span>{formatCurrency(product.price)} · Estoque {product.stock}</span>
               </div>
               <div className="admin-product-card__actions">
-                <MenuRow icon="✏️" label="Editar" onClick={() => setForm({ ...product, price: product.price, stock: product.stock })} />
+                <MenuRow icon="✏️" label="Editar" onClick={() => { setForm({ ...product, price: product.price, stock: product.stock }); setImagePreview(''); setImageInfo(''); setImageError('') }} />
                 <MenuRow icon="🗑️" label="Excluir" onClick={() => deleteProduct(product.id)} danger />
               </div>
             </article>
