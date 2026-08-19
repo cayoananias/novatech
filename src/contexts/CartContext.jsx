@@ -24,6 +24,29 @@ function clampQuantity(quantity, stock) {
   }
 
   return Math.min(Math.floor(numericQuantity), numericStock)
+}
+
+function normalizeStoredItems(items) {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items
+    .map((item) => ({
+      ...item,
+      price: Number(item.price) || 0,
+      stock: Number(item.stock) || 0,
+      quantity: clampQuantity(item.quantity, item.stock),
+    }))
+    .filter((item) => item.id && item.quantity > 0)
+}
+
+function persistCartItems(nextItems) {
+  writeJson(cartStorageKey, nextItems)
+  return nextItems
+}
+
+function CartProvider({ children }) {
 
 }
 
@@ -73,6 +96,10 @@ export function CartProvider({ children }) {
     }
 
     setItems((currentItems) => {
+      const productsById = new Map(products.map((product) => [product.id, product]))
+      const nextItems = currentItems
+        .map((item) => {
+          const product = productsById.get(item.id)
       const productsById = new Map()
       products.forEach((product) => {
         productsById.set(normalizeId(product.id), product)
@@ -127,6 +154,7 @@ export function CartProvider({ children }) {
 
       const nextItems = existingItem
         ? currentItems.map((item) =>
+            item.id === product.id
             normalizeId(item.id) === productId
               ? {
                   ...item,
@@ -179,6 +207,11 @@ export function CartProvider({ children }) {
   }, [])
 
   const removeItem = useCallback((productId) => {
+    setItems((currentItems) => persistCartItems(currentItems.filter((item) => item.id !== productId)))
+  }, [])
+
+
+  const removeItem = useCallback((productId) => {
     const normalizedProductId = normalizeId(productId)
     setItems((currentItems) => persistCartItems(currentItems.filter((item) => normalizeId(item.id) !== normalizedProductId)))
   }, [])
@@ -217,7 +250,7 @@ export function CartProvider({ children }) {
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
-export function useCart() {
+function useCart() {
   const context = useContext(CartContext)
   if (!context) {
     throw new Error('useCart deve ser usado dentro de CartProvider')
@@ -225,3 +258,5 @@ export function useCart() {
 
   return context
 }
+
+export { CartProvider, useCart }

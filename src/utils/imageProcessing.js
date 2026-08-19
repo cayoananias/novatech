@@ -1,4 +1,8 @@
 const acceptedImageTypes = ['image/jpeg', 'image/png', 'image/webp']
+const maxOriginalSize = 8 * 1024 * 1024
+const outputType = 'image/jpeg'
+const outputQuality = 0.82
+const maxDimension = 1200
 const outputType = 'image/jpeg'
 const outputQuality = 0.72
 const maxDimension = 1000
@@ -40,6 +44,9 @@ export function validateImageFile(file) {
   if (!file) return ''
   if (!acceptedImageTypes.includes(file.type)) {
     return 'Selecione uma imagem nos formatos JPG, PNG ou WebP.'
+  }
+  if (file.size > maxOriginalSize) {
+    return 'A imagem deve ter no máximo 8 MB antes da otimização.'
   }
   return ''
 }

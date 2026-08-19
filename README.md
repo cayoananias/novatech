@@ -19,13 +19,13 @@ Aplicação React mobile-first para e-commerce de brinquedos eletrônicos recicl
 - `src/config/firebase.js` - configuração via variáveis de ambiente
 
 ## Variáveis de ambiente
-Crie um arquivo `.env.local` com os valores do Firebase.
+Crie um arquivo `.env.local` ou `.env` com os valores do Firebase. No Vite, as variáveis precisam começar com `VITE_` para ficarem disponíveis no navegador.
 
 ```bash
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_STORAGE_BUCKET= # necessário apenas para upload no Firebase Storage
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
@@ -36,7 +36,7 @@ VITE_FIREBASE_MEASUREMENT_ID=
 2. Ative Authentication com o provedor Email/Senha.
 3. Crie o Firestore em modo produção.
 4. Ative Storage se quiser enviar imagens pelo painel admin.
-5. Cole as credenciais no `.env.local`.
+5. Cole as credenciais no `.env.local` ou `.env` e reinicie o servidor Vite após alterar o arquivo.
 
 ## Firestore
 Coleções preparadas:

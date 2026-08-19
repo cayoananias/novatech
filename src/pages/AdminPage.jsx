@@ -224,6 +224,7 @@ export function AdminPage() {
               </div>
               <div className="admin-product-card__actions">
                 <MenuRow icon="✏️" label="Editar" onClick={() => { setForm({ ...product, price: product.price, stock: product.stock }); setImagePreview(''); setImageInfo(''); setImageError('') }} />
+                <MenuRow icon="🗑️" label="Excluir" onClick={() => deleteProduct(product.id)} danger />
                 <MenuRow icon="🗑️" label="Excluir" onClick={() => void handleDeleteProduct(product)} danger />
               </div>
             </article>
