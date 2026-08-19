@@ -24,7 +24,6 @@ dist-ssr
 *.sw?
 
 # Environment / Credentials
-.env
 .env.local
 .env.*.local
 serviceAccountKey.json

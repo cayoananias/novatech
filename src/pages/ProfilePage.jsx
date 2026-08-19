@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getUserOrders } from '../services/ordersService'
+import { subscribeUserOrders } from '../services/ordersService'
 import { formatCurrency, formatDate } from '../utils/format'
 
 export function ProfilePage() {
@@ -21,7 +21,12 @@ export function ProfilePage() {
       phone: currentUser.phone || '',
     })
 
-    getUserOrders(currentUser.uid).then(setOrders)
+    const unsubscribe = subscribeUserOrders(currentUser.uid, setOrders)
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
+    }
   }, [currentUser])
 
   if (!isAuthenticated) {

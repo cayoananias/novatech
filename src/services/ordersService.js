@@ -15,6 +15,15 @@ import { createId, readJson, writeJson } from '../utils/storage'
 
 const localOrdersKey = 'novatech-orders'
 
+function normalizeId(id) {
+  return id == null ? '' : String(id)
+}
+
+function matchesProductId(product, productId) {
+  const normalizedProductId = normalizeId(productId)
+  return normalizeId(product.id) === normalizedProductId || normalizeId(product.legacyId) === normalizedProductId
+}
+
 function readLocalOrders() {
   return readJson(localOrdersKey, [])
 }
@@ -60,10 +69,26 @@ export async function placeOrder({ user, items, totals, paymentMethod = 'pending
 
   if (hasFirebaseConfig && firebaseDb) {
     const orderReference = doc(collection(firebaseDb, 'orders'))
+    const productsSnapshot = await getDocs(collection(firebaseDb, 'products'))
+    const productsById = new Map()
+
+    productsSnapshot.docs.forEach((productDoc) => {
+      const productData = { id: productDoc.id, ...productDoc.data(), legacyId: productDoc.data().id }
+      productsById.set(normalizeId(productData.id), productData)
+      if (productData.legacyId) {
+        productsById.set(normalizeId(productData.legacyId), productData)
+      }
+    })
 
     await runTransaction(firebaseDb, async (transaction) => {
       for (const item of items) {
-        const productReference = doc(firebaseDb, 'products', item.id)
+        const product = productsById.get(normalizeId(item.id))
+        const productReference = product ? doc(firebaseDb, 'products', product.id) : null
+
+        if (!productReference) {
+          throw new Error(`Produto indisponível: ${item.name}`)
+        }
+
         const productSnapshot = await transaction.get(productReference)
 
         if (!productSnapshot.exists()) {
@@ -105,6 +130,7 @@ export async function placeOrder({ user, items, totals, paymentMethod = 'pending
 
   for (const item of items) {
     const product = nextProducts.find((candidate) => candidate.id === item.id)
+    const product = nextProducts.find((candidate) => matchesProductId(candidate, item.id))
     if (!product || product.active === false) {
       throw new Error(`Produto indisponível: ${item.name}`)
     }

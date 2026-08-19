@@ -16,7 +16,15 @@ export function writeJson(key, value) {
     return
   }
 
-  window.localStorage.setItem(key, JSON.stringify(value))
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    if (error?.name === 'QuotaExceededError' || error?.code === 22) {
+      throw new Error('A imagem ficou grande demais para salvar localmente. Tente uma imagem menor.')
+    }
+
+    throw error
+  }
 }
 
 export function removeJson(key) {
