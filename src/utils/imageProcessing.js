@@ -3,6 +3,9 @@ const maxOriginalSize = 8 * 1024 * 1024
 const outputType = 'image/jpeg'
 const outputQuality = 0.82
 const maxDimension = 1200
+const outputType = 'image/jpeg'
+const outputQuality = 0.72
+const maxDimension = 1000
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {

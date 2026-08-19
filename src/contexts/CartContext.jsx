@@ -6,6 +6,15 @@ import { readJson, writeJson } from '../utils/storage'
 const CartContext = createContext(null)
 const cartStorageKey = 'novatech-cart'
 
+function normalizeId(id) {
+  return id == null ? '' : String(id)
+}
+
+function matchesProductId(product, productId) {
+  const normalizedProductId = normalizeId(productId)
+  return normalizeId(product.id) === normalizedProductId || normalizeId(product.legacyId) === normalizedProductId
+}
+
 function clampQuantity(quantity, stock) {
   const numericQuantity = Number(quantity)
   const numericStock = Number(stock)
@@ -38,30 +47,6 @@ function persistCartItems(nextItems) {
 }
 
 function CartProvider({ children }) {
-  const { products, loading: productsLoading } = useProducts()
-  const [items, setItems] = useState(() => normalizeStoredItems(readJson(cartStorageKey, [])))
-
-  useEffect(() => {
-    persistCartItems(items)
-  }, [items])
-
-  useEffect(() => {
-    const handleStorage = (event) => {
-      if (event.key === cartStorageKey) {
-        setItems(normalizeStoredItems(readJson(cartStorageKey, [])))
-      }
-    }
-
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
-
-  useEffect(() => {
-    if (productsLoading || products.length === 0) {
-      return
-    }
-
-    setItems((currentItems) => {
       const productsById = new Map(products.map((product) => [product.id, product]))
       const nextItems = currentItems
         .map((item) => {
@@ -100,7 +85,8 @@ function CartProvider({ children }) {
     }
 
     setItems((currentItems) => {
-      const existingItem = currentItems.find((item) => item.id === product.id)
+      const productId = normalizeId(product.id)
+      const existingItem = currentItems.find((item) => normalizeId(item.id) === productId)
       const nextQuantity = clampQuantity((existingItem?.quantity || 0) + quantity, product.stock)
 
       if (nextQuantity <= 0) {
@@ -146,7 +132,7 @@ function CartProvider({ children }) {
     setItems((currentItems) => {
       const nextItems = currentItems
         .map((item) =>
-          item.id === productId
+          normalizeId(item.id) === normalizedProductId
             ? {
                 ...item,
                 quantity: clampQuantity(quantity, item.stock),

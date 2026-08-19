@@ -11,6 +11,15 @@ import {
 
 const ProductsContext = createContext(null)
 
+function normalizeId(id) {
+  return id == null ? '' : String(id)
+}
+
+function matchesProductId(product, productId) {
+  const normalizedProductId = normalizeId(productId)
+  return normalizeId(product.id) === normalizedProductId || normalizeId(product.legacyId) === normalizedProductId
+}
+
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +42,7 @@ export function ProductsProvider({ children }) {
       products,
       loading,
       hasFirebaseConfig,
-      getById: (productId) => products.find((product) => product.id === productId) || getProductById(productId),
+      getById: (productId) => products.find((product) => matchesProductId(product, productId)) || getProductById(productId),
       refreshLocalSnapshot: () => getProductsSnapshot(),
       createProduct: async (payload) => {
         const createdProduct = await createProductService(payload)
@@ -45,14 +54,23 @@ export function ProductsProvider({ children }) {
       updateProduct: async (productId, payload) => {
         const updatedProduct = await updateProductService(productId, payload)
         if (!hasFirebaseConfig) {
-          setProducts((currentProducts) => currentProducts.map((product) => (product.id === productId ? { ...product, ...updatedProduct } : product)))
+          setProducts((currentProducts) =>
+            currentProducts.map((product) => (matchesProductId(product, productId) ? { ...product, ...updatedProduct } : product)),
+          )
         }
         return updatedProduct
       },
       deleteProduct: async (productId) => {
-        await deleteProductService(productId)
-        if (!hasFirebaseConfig) {
-          setProducts((currentProducts) => currentProducts.filter((product) => product.id !== productId))
+        const normalizedProductId = normalizeId(productId)
+        const previousProducts = products
+
+        setProducts((currentProducts) => currentProducts.filter((product) => normalizeId(product.id) !== normalizedProductId))
+
+        try {
+          await deleteProductService(normalizedProductId)
+        } catch (error) {
+          setProducts(previousProducts)
+          throw error
         }
       },
     }),
