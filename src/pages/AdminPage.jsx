@@ -115,15 +115,6 @@ export function AdminPage() {
     }
   }
 
-  const handleDeleteProduct = async (product) => {
-    try {
-      await deleteProduct(product.id)
-      setMessage(`Produto "${product.name}" excluído.`)
-    } catch (error) {
-      setMessage(error.message || 'Não foi possível excluir o produto.')
-    }
-  }
-
   return (
     <div className="page page--admin">
       <header className="page-head">
@@ -224,7 +215,7 @@ export function AdminPage() {
               </div>
               <div className="admin-product-card__actions">
                 <MenuRow icon="✏️" label="Editar" onClick={() => { setForm({ ...product, price: product.price, stock: product.stock }); setImagePreview(''); setImageInfo(''); setImageError('') }} />
-                <MenuRow icon="🗑️" label="Excluir" onClick={() => void handleDeleteProduct(product)} danger />
+                <MenuRow icon="🗑️" label="Excluir" onClick={() => deleteProduct(product.id)} danger />
               </div>
             </article>
           ))}

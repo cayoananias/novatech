@@ -24,7 +24,6 @@ function clampQuantity(quantity, stock) {
   }
 
   return Math.min(Math.floor(numericQuantity), numericStock)
-
 }
 
 function normalizeStoredItems(items) {
@@ -35,7 +34,6 @@ function normalizeStoredItems(items) {
   return items
     .map((item) => ({
       ...item,
-      id: normalizeId(item.id),
       price: Number(item.price) || 0,
       stock: Number(item.stock) || 0,
       quantity: clampQuantity(item.quantity, item.stock),
@@ -48,41 +46,11 @@ function persistCartItems(nextItems) {
   return nextItems
 }
 
-export function CartProvider({ children }) {
-  const { products, loading: productsLoading } = useProducts()
-  const [items, setItems] = useState(() => normalizeStoredItems(readJson(cartStorageKey, [])))
-
-  useEffect(() => {
-    persistCartItems(items)
-  }, [items])
-
-  useEffect(() => {
-    const handleStorage = (event) => {
-      if (event.key === cartStorageKey) {
-        setItems(normalizeStoredItems(readJson(cartStorageKey, [])))
-      }
-    }
-
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
-
-  useEffect(() => {
-    if (productsLoading || products.length === 0) {
-      return
-    }
-
-    setItems((currentItems) => {
-      const productsById = new Map()
-      products.forEach((product) => {
-        productsById.set(normalizeId(product.id), product)
-        if (product.legacyId) {
-          productsById.set(normalizeId(product.legacyId), product)
-        }
-      })
+function CartProvider({ children }) {
+      const productsById = new Map(products.map((product) => [product.id, product]))
       const nextItems = currentItems
         .map((item) => {
-          const product = productsById.get(normalizeId(item.id))
+          const product = productsById.get(item.id)
           if (!product || product.active === false) {
             return null
           }
@@ -127,7 +95,7 @@ export function CartProvider({ children }) {
 
       const nextItems = existingItem
         ? currentItems.map((item) =>
-            normalizeId(item.id) === productId
+            item.id === product.id
               ? {
                   ...item,
                   name: product.name,
@@ -162,7 +130,6 @@ export function CartProvider({ children }) {
 
   const updateQuantity = useCallback((productId, quantity) => {
     setItems((currentItems) => {
-      const normalizedProductId = normalizeId(productId)
       const nextItems = currentItems
         .map((item) =>
           normalizeId(item.id) === normalizedProductId
@@ -179,8 +146,7 @@ export function CartProvider({ children }) {
   }, [])
 
   const removeItem = useCallback((productId) => {
-    const normalizedProductId = normalizeId(productId)
-    setItems((currentItems) => persistCartItems(currentItems.filter((item) => normalizeId(item.id) !== normalizedProductId)))
+    setItems((currentItems) => persistCartItems(currentItems.filter((item) => item.id !== productId)))
   }, [])
 
   const clearCart = useCallback(() => {
@@ -217,7 +183,7 @@ export function CartProvider({ children }) {
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
-export function useCart() {
+function useCart() {
   const context = useContext(CartContext)
   if (!context) {
     throw new Error('useCart deve ser usado dentro de CartProvider')
@@ -225,3 +191,5 @@ export function useCart() {
 
   return context
 }
+
+export { CartProvider, useCart }

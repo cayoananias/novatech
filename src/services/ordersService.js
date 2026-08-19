@@ -129,7 +129,7 @@ export async function placeOrder({ user, items, totals, paymentMethod = 'pending
   const nextProducts = products.map((product) => ({ ...product }))
 
   for (const item of items) {
-    const product = nextProducts.find((candidate) => matchesProductId(candidate, item.id))
+    const product = nextProducts.find((candidate) => candidate.id === item.id)
     if (!product || product.active === false) {
       throw new Error(`Produto indisponível: ${item.name}`)
     }
